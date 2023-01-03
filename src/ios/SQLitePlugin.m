@@ -177,11 +177,31 @@
 
             // NOTE: create DB from resource [pre-populated] NOT supported with sqlcipher.
 
+
+
+
             if (sqlite3_open(name, &db) != SQLITE_OK) {
                 [self logSqlError:db message:@"Unable to open DB"];
                 pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to open DB"];
                 [self.commandDelegate sendPluginResult:pluginResult callbackId: command.callbackId];
             } else {
+            
+            // SQLCipher key:
+                NSString *dbkey = [options objectForKey:@"key"];
+                const char *key = NULL;
+                if (dbkey != NULL && dbkey.length != 0) key = [dbkey UTF8String];
+                NSLog((key != NULL) ? @"Open DB with encryption" : @"Open DB with NO encryption");
+                // if (key != NULL) sqlite3_key(db, key, strlen(key));
+                // Below code for FIX ionic/storage 2.2.0
+                if(sqlite3_exec(db, (const char*)"SELECT * FROM _ionickv;", my_special_callback, NULL, NULL) == SQLITE_OK){
+                        NSLog(@"_ionickv is open");
+                }else{
+                    NSLog(@"Key Not valid");
+                    sqlite3_key(db, "_ionickey", strlen("_ionickey"));
+                    sqlite3_exec(db, (const char*)"SELECT * FROM _ionickv;", my_special_callback, NULL, NULL);
+                }
+                // End Fix
+                
                 [self prepareDatabase:db options:options];
                 // XXX Brody TODO check this in Javascript instead.
                 // Attempt to read the SQLite master table [to support SQLCipher version]:
