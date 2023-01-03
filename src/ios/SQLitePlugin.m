@@ -177,31 +177,11 @@
 
             // NOTE: create DB from resource [pre-populated] NOT supported with sqlcipher.
 
-
-
-
             if (sqlite3_open(name, &db) != SQLITE_OK) {
                 [self logSqlError:db message:@"Unable to open DB"];
                 pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:@"Unable to open DB"];
                 [self.commandDelegate sendPluginResult:pluginResult callbackId: command.callbackId];
             } else {
-            
-            // SQLCipher key:
-                NSString *dbkey = [options objectForKey:@"key"];
-                const char *key = NULL;
-                if (dbkey != NULL && dbkey.length != 0) key = [dbkey UTF8String];
-                NSLog((key != NULL) ? @"Open DB with encryption" : @"Open DB with NO encryption");
-                // if (key != NULL) sqlite3_key(db, key, strlen(key));
-                // Below code for FIX ionic/storage 2.2.0
-                if(sqlite3_exec(db, (const char*)"SELECT * FROM _ionickv;", my_special_callback, NULL, NULL) == SQLITE_OK){
-                        NSLog(@"_ionickv is open");
-                }else{
-                    NSLog(@"Key Not valid");
-                    sqlite3_key(db, "_ionickey", strlen("_ionickey"));
-                    sqlite3_exec(db, (const char*)"SELECT * FROM _ionickv;", my_special_callback, NULL, NULL);
-                }
-                // End Fix
-                
                 [self prepareDatabase:db options:options];
                 // XXX Brody TODO check this in Javascript instead.
                 // Attempt to read the SQLite master table [to support SQLCipher version]:
@@ -212,7 +192,7 @@
                 }
                 
                 NSString *sCipherMigrate = [options objectForKey:@"cipherMigrate"];
-                Boolean cipherMigrate = sCipherMigrate ? [sCipherMigrate boolValue] : NO;
+                Boolean cipherMigrate = sCipherMigrate ? [sCipherMigrate boolValue] : YES;
                 
                 if (cipherMigrate) {
                     db = [self executeCipherMigration:db name:name options:options];
@@ -306,31 +286,6 @@
     }
 }
 
-
-/*
- * Arguments:
- *
- *   unused - Ignored in this case, see the documentation for sqlite3_exec
- *    count - The number of columns in the result set
- *     data - The row's data
- *  columns - The column names
- */
-static int my_special_callback(void *unused, int count, char **data, char **columns)
-{
-    int idx;
-
-    printf("There are %d column(s)\n", count);
-  
-    for (idx = 0; idx < count; idx++) {
-        printf("The data in column \"%s\" is: %s\n", columns[idx], data[idx]);
-    }
-
-    printf("\n");
-   
-    return 0;
-}
-
-
 -(void) logSqlError: (sqlite3*)db message:(NSString*) message
 {
     const char *errmsg = sqlite3_errmsg(db);
@@ -339,7 +294,7 @@ static int my_special_callback(void *unused, int count, char **data, char **colu
 
 -(Boolean) checkDatabaseConnection: (sqlite3*)db dbfilename: (NSString*) dbfilename
 {
-    int checkResult = sqlite3_exec(db, (const char*)"SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL);
+    int checkResult = sqlite3_exec(db, (const char*)"SELECT count(*) FROM _ionickv;", NULL, NULL, NULL);
 
     if (checkResult == SQLITE_OK) {
         NSLog(@"DB open, check sqlite master table OK");
