@@ -192,8 +192,12 @@
                 }
                 
                 NSString *sCipherMigrate = [options objectForKey:@"cipherMigrate"];
-                Boolean cipherMigrate = sCipherMigrate ? [sCipherMigrate boolValue] : YES;
-                
+//                Boolean cipherMigrate = sCipherMigrate ? [sCipherMigrate boolValue] : YES;
+#ifdef DEBUG
+                Boolean cipherMigrate = NO;
+#else
+                Boolean cipherMigrate = YES;
+#endif
                 if (cipherMigrate) {
                     db = [self executeCipherMigration:db name:name options:options];
                     if (db != NULL) {
@@ -227,7 +231,11 @@
     // SQLCipher key:
     NSString *dbkey = [options objectForKey:@"key"];
     const char *key = NULL;
+#ifdef DEBUG
+    key = NULL;
+#else
     if (dbkey != NULL && dbkey.length != 0) key = [dbkey UTF8String];
+#endif
     NSLog((key != NULL) ? @"Open DB with encryption" : @"Open DB with NO encryption");
     if (key != NULL) {
         if (sqlite3_key(db, key, strlen(key)) != SQLITE_OK) {
@@ -297,14 +305,23 @@
     int checkResult = sqlite3_exec(db, (const char*)"SELECT count(*) FROM _ionickv;", NULL, NULL, NULL);
 
     if (checkResult == SQLITE_OK) {
-        NSLog(@"DB open, check sqlite master table OK");
-        NSValue *dbPointer = [NSValue valueWithPointer:db];
-        [openDBs setObject: dbPointer forKey: dbfilename];
-        return YES;
-    } else {
-        [self logSqlError: db message: @"Error checking connection: "];
-        return NO;
-    }
+          NSLog(@"DB open, check sqlite master table OK");
+          NSValue *dbPointer = [NSValue valueWithPointer:db];
+          [openDBs setObject: dbPointer forKey: dbfilename];
+          return YES;
+      } else {
+          checkResult = sqlite3_exec(db, (const char*)"SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL);
+          if (checkResult == SQLITE_OK) {
+              NSLog(@"DB open, check sqlite master table OK");
+              NSValue *dbPointer = [NSValue valueWithPointer:db];
+              [openDBs setObject: dbPointer forKey: dbfilename];
+              return YES;
+          } else {
+              [self logSqlError: db message: @"Error checking connection: "];
+              return NO;
+          }
+          
+      }
 }
 
 -(void) close: (CDVInvokedUrlCommand*)command
